@@ -90,18 +90,34 @@ def relief_texture(n=256):
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default="data")
-    args = ap.parse_args()
-    os.makedirs(args.out, exist_ok=True)
+    """Prepare the user's Tugu Pahlawan model by default.
 
-    positions, uvs, faces, face_uvs = build_temple()
-    save_obj(os.path.join(args.out, "pusaka_model.obj"), positions, uvs, faces, face_uvs)
-    tex = relief_texture()
-    nbytes = write_ppm(os.path.join(args.out, "relief.ppm"), tex)
-    print(f"wrote {args.out}/pusaka_model.obj  ({len(positions)} verts, "
-          f"{len(faces)} triangles)")
-    print(f"wrote {args.out}/relief.ppm  ({tex.shape[1]}x{tex.shape[0]}, {nbytes} bytes)")
+    The original deterministic candi generator remains available with
+    `--fallback-temple`; the Lab 3 clean-clone workflow uses `python
+    make_model.py` and therefore prepares the supplied Tugu asset and static
+    web copies rather than silently switching back to the temple example.
+    """
+    import argparse
+    ap = argparse.ArgumentParser(description="Build the Module 3 model assets")
+    ap.add_argument("--fallback-temple", action="store_true",
+                    help="generate the original Pusaka3D candi fallback instead")
+    ap.add_argument("--out", default="data", help="output directory for fallback temple")
+    args = ap.parse_args()
+
+    if args.fallback_temple:
+        os.makedirs(args.out, exist_ok=True)
+        positions, uvs, faces, face_uvs = build_temple()
+        save_obj(os.path.join(args.out, "pusaka_model.obj"), positions, uvs, faces, face_uvs)
+        tex = relief_texture()
+        nbytes = write_ppm(os.path.join(args.out, "relief.ppm"), tex)
+        print(f"wrote {args.out}/pusaka_model.obj  ({len(positions)} verts, {len(faces)} triangles)")
+        print(f"wrote {args.out}/relief.ppm  ({tex.shape[1]}x{tex.shape[0]}, {nbytes} bytes)")
+        return
+
+    from prepare_tugu import main as prepare_tugu
+    from sync_web_assets import main as sync_web_assets
+    prepare_tugu()
+    sync_web_assets()
 
 
 if __name__ == "__main__":

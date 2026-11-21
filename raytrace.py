@@ -17,6 +17,7 @@ from material_io import load_materials
 from ppm_io import write_ppm
 from srgb import srgb_to_linear, linear_to_srgb
 from raster3d import sample_bilinear
+from shadows import triangle_light_visibility
 
 
 def moller_trumbore(orig, dirs, v0, v1, v2):
@@ -40,13 +41,15 @@ def moller_trumbore(orig, dirs, v0, v1, v2):
 def render(mesh, *, w, h, tex_u8=None, material_colors=None, model=None,
            eye=(3.4, 2.5, 4.2), center=(0, 0.8, 0), fovy=45.0,
            near=0.1, far=50.0, light_dir=(0.4, 0.9, 0.6), ambient=0.15,
-           triangle_chunk=None):
+           triangle_chunk=None, hard_shadows=False, shadow_strength=0.12):
     """Cast a camera ray through each pixel and shade the nearest hit."""
     if model is None:
         model = np.eye(4)
     pos_h = np.c_[mesh.positions, np.ones(len(mesh.positions))]
     world = (np.asarray(model) @ pos_h.T).T[:, :3]
     tris = world[mesh.faces]
+    light_visibility = (triangle_light_visibility(world, mesh.faces, light_dir)
+                        if hard_shadows else np.ones(len(mesh.faces), dtype=bool))
     tuv = mesh.triangle_uvs()
     eye = np.asarray(eye, dtype=np.float64)
     center = np.asarray(center, dtype=np.float64)
@@ -109,6 +112,8 @@ def render(mesh, *, w, h, tex_u8=None, material_colors=None, model=None,
             if normal @ (eye - centroid) < 0:
                 normal = -normal
             lambert = ambient + (1.0 - ambient) * max(0.0, float(normal @ light))
+            if not light_visibility[fi]:
+                lambert *= float(shadow_strength)
             mat_name = mesh.face_material(int(fi))
             if mat_name in texture_linear:
                 rgb = sample_bilinear(texture_linear[mat_name],
@@ -129,11 +134,12 @@ def main():
     ap.add_argument("--w", type=int, default=128)
     ap.add_argument("--h", type=int, default=128)
     ap.add_argument("--out", default="out/tugu_raytrace.ppm")
+    ap.add_argument("--hard-shadows", action="store_true", help="enable flat-face centroid hard shadows")
     args = ap.parse_args()
     mesh = load_obj(args.model)
     textures, colors, _ = load_materials(args.model)
     image, depth = render(mesh, w=args.w, h=args.h, tex_u8=textures,
-                          material_colors=colors, model=rot_y(12.0))
+                          material_colors=colors, model=rot_y(12.0), hard_shadows=args.hard_shadows)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     write_ppm(out, image)

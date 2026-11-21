@@ -1,5 +1,5 @@
 # Modul 3 — Praktikum Grafika Komputer
-## Lab 1–2: Monumen Tugu Pahlawan dan Museum 10 November
+## Lab 1–3: Monumen Tugu Pahlawan dan Museum 10 November
 
 Proyek ini melanjutkan **kode starter asli `Module3_Code(2).zip`** dan hasil Lab 1 yang sudah disesuaikan dengan model Tugu Pahlawan. Lab 2 menambahkan pipeline 3D from-scratch berbasis NumPy, renderer rasterisasi dengan z-buffer, ray tracer pinhole, diagnosis tiga scene bermasalah, demonstrasi UV perspective-correct, serta mipmap empat level.
 
@@ -13,25 +13,29 @@ Proyek ini melanjutkan **kode starter asli `Module3_Code(2).zip`** dan hasil Lab
 - `lab1_analysis.py`, `docs/Lab1_Analisis.md` — statistik model, matriks Model/View, dan telusuran satu vertex.
 - `transforms.py` — transformasi 4×4, perspektif, lookAt, viewport.
 - `objio.py`, `material_io.py` — loader OBJ/MTL minimal; mempertahankan UV dan assignment material per face.
-- `raster3d.py` — clipping near-plane, perspective divide, viewport, barycentric rasterisation, z-buffer float64, interpolasi UV perspective-correct, bilinear sampling, Lambert lighting, dan pemilihan mip level.
-- `raytrace.py` — ray pinhole, Möller–Trumbore, nearest hit, material/texture dan shading yang sama dengan rasterizer.
+- `raster3d.py` — clipping near-plane, perspective divide, viewport, barycentric rasterisation, z-buffer float64, interpolasi UV perspective-correct, bilinear sampling, Lambert lighting, pemilihan mip level, dan opsi eksperimen hard shadow.
+- `raytrace.py` — ray pinhole, Möller–Trumbore, nearest hit, material/texture dan shading yang sama dengan rasterizer; opsi eksperimen hard shadow.
 - `broken_scene.py` — diagnosis inside-out, z-fighting, dan stretched; menyimpan render rusak, hasil perbaikan, citra depth dan laporan JSON.
 - `uv_demo.py` — render UV screen-linear yang salah dibanding UV perspective-correct.
 - `mipmap_demo.py` — membangun piramida mip empat level dengan box filtering pada linear light dan render sebelum/sesudah.
 - `metrics.py`, `compare.py` — PSNR, SSIM global sederhana, mean/max absolute difference.
-- `tests.py` — pengujian E1–E5, clipping, Tugu OBJ/MTL, mipmap, frame referensi, dan raster-vs-raytrace.
+- `tests.py` — pengujian E1–E5, clipping, Tugu OBJ/MTL, mipmap, frame referensi, raster-vs-raytrace, hard-shadow ray test, dan bundle aset web.
 - `run_lab2.py` — menjalankan seluruh pengujian dan eksperimen Lab 2 dalam satu perintah.
 - `ref/tugu_raster_reference.ppm` — frame acuan Tugu yang dibekukan untuk memeriksa reproduksibilitas render.
 - `docs/evidence/` — gambar bukti yang mudah dibuka dari Windows/GitHub.
 - `out/` — keluaran mentah PPM, histogram, JSON, dan log dari pengujian.
-- `web/` — viewer Three.js untuk kelanjutan Lab 3.
+- `web/` — viewer Three.js/WebGL Lab 3, aset statis `web/assets/`, OrbitControls, shadow map, ekspor PPM 512×512, dan benchmark browser.
+- `sync_web_assets.py` — menyalin OBJ, MTL, dan diffuse PNG ke direktori static web agar aman untuk `npx serve web`/GitHub Pages.
+- `lab3_benchmark.py`, `lab3_capture.py`, `run_lab3.py` — benchmark Python dan pembentukan reference frame 512×512.
+- `collect_lab3_results.py` — menggabungkan PPM/benchmark hasil unduhan browser ke metrik PSNR/SSIM dan laporan Markdown.
+- `.github/workflows/deploy-pages.yml` — publikasi folder `web/` ke GitHub Pages setelah Pages Source disetel ke GitHub Actions.
 
 ## Toolchain
 
 - Python 3.10 atau lebih baru (disarankan 3.11/3.12).
 - NumPy 1.24 atau lebih baru.
 - Pillow 10 atau lebih baru untuk membaca texture PNG dari MTL.
-- Node.js dan browser diperlukan untuk viewer Three.js di Lab 3, bukan untuk pipeline Lab 2.
+- Node.js + browser diperlukan untuk viewer Three.js di Lab 3; halaman viewer memakai Three.js r160 dari CDN, sedangkan model dan texture dibundel lokal.
 
 ## Persiapan Windows
 
@@ -106,9 +110,43 @@ Angka dan pembahasan rinci: `docs/Lab2_Analisis.md`. Keluaran mentah dan log ada
 - Ray tracer sederhana ini berkompleksitas O(jumlah pixel × jumlah segitiga), sehingga ditujukan sebagai referensi satu frame, bukan renderer real-time untuk mesh besar.
 - File sumber yang diunggah tidak menyertakan keterangan lisensi/atribusi. Periksa lisensi aset sebelum repository atau viewer dipublikasikan secara publik.
 
-## Kelanjutan Lab 3
+## Menjalankan Lab 3
 
-Lab 3 melanjutkan folder ini dengan Three.js/WebGL, OrbitControls, frame PPM 512×512, pembandingan dengan render NumPy, prediksi dan pengukuran frame time, serta publikasi GitHub Pages. Jangan menghapus `data/source/`, `data/mymodel.obj`, `data/mymodel.mtl`, atau texture saat mengganti versi proyek.
+Siapkan model dan salin aset web (jalankan juga pada clone bersih):
+
+```powershell
+python make_model.py
+python tests.py
+```
+
+Jalankan eksperimen Python untuk Lab 3:
+
+```powershell
+python run_lab3.py
+```
+
+Viewer browser:
+
+```powershell
+npx serve web
+```
+
+Buka URL yang ditampilkan. Klik **Reset kamera acuan**, pastikan Grid dan Bayangan mati, lalu **Ekspor PPM 512 × 512**. Pindahkan hasil unduhan `mymodel_three.ppm` ke `web/mymodel_three.ppm`. Klik **Ukur frame time** dan simpan `webgl_benchmark.json` ke `out/webgl_benchmark.json`.
+
+Bandingkan:
+
+```powershell
+python compare.py out/tugu_raster_512.ppm web/mymodel_three.ppm --diff docs/evidence/lab3_webgl_numpy_difference_x6.ppm --scale 6
+python collect_lab3_results.py --web-frame web/mymodel_three.ppm --web-benchmark out/webgl_benchmark.json
+```
+
+Laporan detail, tabel prediksi/pengukuran, batasan renderer, dan instruksi deploy ada di `docs/Lab3_Analisis.md`.
+
+### Publikasi GitHub Pages
+
+Workflow `.github/workflows/deploy-pages.yml` menerbitkan isi folder `web/` ke GitHub Pages pada push ke `m3-work`. Pada repository GitHub, atur **Settings → Pages → Build and deployment → Source = GitHub Actions**, lalu periksa tab **Actions**. Setelah deploy sukses, catat URL project site berbentuk `https://USERNAME.github.io/NAMA-REPOSITORY/` di laporan.
+
+Jangan menghapus `data/source/`, `data/mymodel.obj`, `data/mymodel.mtl`, file PNG, atau `web/assets/` saat mengganti versi proyek.
 
 ### Gambar bukti Lab 2
 
@@ -118,3 +156,8 @@ Lab 3 melanjutkan folder ini dengan Three.js/WebGL, OrbitControls, frame PPM 512
 - [Mipmap sebelum dan sesudah](docs/evidence/mipmap_comparison.png)
 - [Histogram depth z-fighting](docs/evidence/zfight_depth_histogram.png)
 - [Crop hasil render Tugu Pahlawan](docs/evidence/tugu_pahlawan_raster_crop.png)
+
+### Gambar bukti Lab 3
+
+- [Baseline NumPy 512×512](docs/evidence/lab3_numpy_reference_512.png)
+- [Eksperimen hard shadow](docs/evidence/lab3_hard_shadow_comparison.png)

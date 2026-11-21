@@ -18,6 +18,7 @@ from objio import load_obj, Mesh
 from ppm_io import read_ppm, write_ppm
 from srgb import srgb_to_linear, linear_to_srgb
 from material_io import load_materials
+from shadows import triangle_light_visibility
 
 
 def sample_bilinear(tex_lin, u, v):
@@ -121,7 +122,7 @@ def render(mesh, *, w, h, tex_u8=None, material_colors=None, model=None,
            tri_colors=None, eye=(3.4, 2.5, 4.2), center=(0, 0.8, 0),
            fovy=45.0, near=0.1, far=50.0, light_dir=(0.4, 0.9, 0.6),
            ambient=0.15, cull_back=False, depth_bits=None, mipmap=False,
-           perspective_correct=True):
+           perspective_correct=True, hard_shadows=False, shadow_strength=0.12):
     """Render a Mesh to (uint8 RGB, float NDC-depth, fragment-count).
 
     tex_u8 may be one RGB array (legacy starter) or {material_name: RGB array}.
@@ -142,6 +143,8 @@ def render(mesh, *, w, h, tex_u8=None, material_colors=None, model=None,
     material_colors = material_colors or {}
     L = np.asarray(light_dir, dtype=np.float64)
     L /= max(np.linalg.norm(L), 1e-12)
+    light_visibility = (triangle_light_visibility(world, tris_pos, L)
+                        if hard_shadows else np.ones(len(tris_pos), dtype=bool))
 
     color = np.zeros((h, w, 3), dtype=np.float64)
     depth = np.full((h, w), np.inf, dtype=np.float64)
@@ -158,6 +161,8 @@ def render(mesh, *, w, h, tex_u8=None, material_colors=None, model=None,
         if nrm @ (eye_pos - wp[0]) < 0:
             nrm = -nrm
         shade = ambient + (1.0 - ambient) * max(0.0, float(nrm @ L))
+        if not light_visibility[fi]:
+            shade *= float(shadow_strength)
         uv = tris_uv[fi]
         attrs = np.c_[uv, np.ones(3)]
 
@@ -277,6 +282,7 @@ def main():
     ap.add_argument("--w", type=int, default=192)
     ap.add_argument("--h", type=int, default=192)
     ap.add_argument("--out", default="out/tugu_raster.ppm")
+    ap.add_argument("--hard-shadows", action="store_true", help="enable flat-face centroid hard shadows")
     ap.add_argument("--demo-triangle", action="store_true")
     ap.add_argument("--demo-overlap", action="store_true")
     ap.add_argument("--mipmap", action="store_true")
@@ -292,7 +298,7 @@ def main():
     # Deterministic camera and neutral model transform for the normalized Lab 1 asset.
     model = rot_y(12.0)
     img, dep, filled = render(mesh, w=args.w, h=args.h, tex_u8=tex,
-                              material_colors=colors, model=model, mipmap=args.mipmap)
+                              material_colors=colors, model=model, mipmap=args.mipmap, hard_shadows=args.hard_shadows)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     write_ppm(out, img)

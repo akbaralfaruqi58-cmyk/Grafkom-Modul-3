@@ -165,6 +165,32 @@ def t_tugu_raster_raytrace_parity():
     assert np.isfinite(depth).any() and np.isfinite(ray_depth).any()
 
 
+
+def t_hard_shadow_centroid_visibility():
+    from shadows import triangle_light_visibility
+    vertices = np.array([
+        [-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [0.0, 1.0, 0.0],
+        [-0.5, -0.8, 1.0], [0.5, -0.8, 1.0], [0.0, 0.2, 1.0],
+    ])
+    faces = np.array([[0, 1, 2], [3, 4, 5]])
+    visible = triangle_light_visibility(vertices, faces, light_dir=(0, 0, 1))
+    assert visible.tolist() == [False, True], visible
+
+
+def t_lab3_web_asset_bundle():
+    from pathlib import Path
+    asset_dir = ROOT / "web" / "assets"
+    obj = asset_dir / "mymodel.obj"
+    mtl = asset_dir / "mymodel.mtl"
+    assert obj.is_file() and mtl.is_file(), "run python make_model.py to sync web/assets"
+    text = mtl.read_text(encoding="utf-8", errors="replace")
+    maps = [line.split(maxsplit=1)[1].strip() for line in text.splitlines()
+            if line.lower().startswith("map_kd ")]
+    assert len(maps) >= 8, maps
+    missing = [name for name in maps if not (asset_dir / name).is_file()]
+    assert not missing, missing
+    assert obj.read_bytes() == (ROOT / "data" / "mymodel.obj").read_bytes()
+
 def main():
     checks = [
         ("E1 running point and transform order", t_e1_running_point),
@@ -179,6 +205,8 @@ def main():
         ("four-level gamma-correct mipmap pyramid", t_mipmap_four_levels_gamma_correct),
         ("Tugu raster matches frozen reference (PSNR > 60 dB)", t_tugu_reference_frame),
         ("Tugu rasteriser vs independent ray tracer (PSNR >= 60 dB)", t_tugu_raster_raytrace_parity),
+        ("flat-face hard-shadow visibility ray test", t_hard_shadow_centroid_visibility),
+        ("Lab 3 static web assets and MTL texture references", t_lab3_web_asset_bundle),
     ]
     ok = all(check(name, fn) for name, fn in checks)
     print("\n" + ("ALL CHECKS PASSED" if ok else "SOME CHECKS FAILED"))

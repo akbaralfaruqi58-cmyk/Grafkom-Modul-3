@@ -1,45 +1,86 @@
 <!doctype html>
 <html lang="id">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Modul 3 - Viewer Tugu Pahlawan</title>
-<style>
-  :root { color-scheme: dark; }
-  body { margin: 0; font: 14px/1.55 system-ui, sans-serif; background: #0b1220; color: #e5e7eb; }
-  header { padding: .9rem 1.2rem; background: #111c2e; border-bottom: 1px solid #344054; }
-  header h1 { font-size: 1.1rem; margin: 0; }
-  header p { margin: .3rem 0 0; color: #b8c2d1; }
-  #wrap { padding: 1rem; max-width: 860px; margin: auto; }
-  canvas { width: min(100%, 512px); height: auto; aspect-ratio: 1; border: 1px solid #475467; display: block; background: #111827; }
-  button { font: inherit; padding: .45rem .8rem; margin: .7rem .4rem 0 0; border: 1px solid #667085; border-radius: 6px; background: #1d2939; color: #f2f4f7; cursor: pointer; }
-  button:hover { background: #344054; }
-  #status { min-height: 1.5em; color: #a6f4c5; }
-  .hint { color: #98a2b3; max-width: 650px; }
-  code { color: #d1e9ff; }
-</style>
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
-</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Viewer real-time Monumen Tugu Pahlawan dan Museum 10 November untuk Praktikum Grafika Komputer Modul 3." />
+  <title>Modul 3 — Tugu Pahlawan | Real-Time WebGL</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0b1220; color: #e5e7eb; line-height: 1.5; }
+    header { padding: 1rem clamp(1rem, 4vw, 2.4rem); background: #111c2e; border-bottom: 1px solid #344054; }
+    header h1 { margin: 0; font-size: clamp(1.1rem, 2.5vw, 1.5rem); }
+    header p { margin: .35rem 0 0; color: #b8c2d1; }
+    main { width: min(1080px, calc(100% - 2rem)); margin: 1.3rem auto 2rem; display: grid; grid-template-columns: minmax(300px, 512px) minmax(260px, 1fr); gap: 1.25rem; align-items: start; }
+    .viewer, .panel { border: 1px solid #344054; border-radius: 12px; background: #111c2e; padding: 1rem; }
+    canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; border: 1px solid #475467; border-radius: 8px; background: #000; touch-action: none; }
+    .controls { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: .8rem; }
+    button { font: inherit; font-size: .88rem; padding: .5rem .75rem; border: 1px solid #667085; border-radius: 7px; background: #1d2939; color: #f2f4f7; cursor: pointer; }
+    button:hover { background: #344054; }
+    button:disabled { opacity: .55; cursor: wait; }
+    #status { min-height: 2.8em; margin: .7rem 0 0; color: #a6f4c5; font-size: .9rem; overflow-wrap: anywhere; }
+    .hint, .muted { color: #98a2b3; font-size: .86rem; }
+    .panel h2 { margin: 0 0 .65rem; font-size: 1rem; }
+    .panel h2:not(:first-child) { margin-top: 1.2rem; }
+    dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: .35rem .8rem; font-size: .9rem; }
+    dt { color: #98a2b3; } dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
+    code { color: #d1e9ff; }
+    .note { padding: .7rem .8rem; border-left: 3px solid #f79009; background: #2a2114; color: #fce7c2; border-radius: 4px; font-size: .86rem; }
+    footer { width: min(1080px, calc(100% - 2rem)); margin: 0 auto 1.5rem; color: #667085; font-size: .8rem; }
+    @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+  </style>
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  } }
+  </script>
 </head>
 <body>
-<header>
-  <h1>Modul 3 — Monumen Tugu Pahlawan dan Museum 10 November</h1>
-  <p>Viewer model OBJ ber-material dan bertekstur menggunakan Three.js / WebGL. Seret untuk orbit, scroll untuk zoom.</p>
-</header>
-<div id="wrap">
-  <canvas id="c" width="512" height="512"></canvas>
-  <div>
-    <button id="reset">Reset kamera</button>
-    <button id="wire">Tampilkan wireframe</button>
-    <button id="export">Ekspor PPM 512 × 512</button>
-  </div>
-  <p id="status" role="status">Memuat model…</p>
-  <p class="hint">Model sumber berisi 4.227 segitiga, 5.637 vertex, 5.637 koordinat UV, 15 material, dan texture terpisah. File OBJ telah diorientasikan Y-up, dipusatkan pada X/Z, diletakkan dengan alas Y=0, dan diskalakan ke tinggi 2 satuan dunia. Buka README.md untuk cara menjalankan serta out/lab1_vertex_trace.txt untuk angka pipeline.</p>
-</div>
-<script type="module" src="viewer.js"></script>
+  <header>
+    <h1>Modul 3 — Monumen Tugu Pahlawan dan Museum 10 November</h1>
+    <p>Real-time rendering dengan Three.js / WebGL · Seret untuk orbit · Scroll untuk zoom</p>
+  </header>
+  <main>
+    <section class="viewer" aria-label="Viewer 3D Tugu Pahlawan">
+      <canvas id="c" width="512" height="512"></canvas>
+      <div class="controls">
+        <button id="reset">Reset kamera acuan</button>
+        <button id="wire">Wireframe</button>
+        <button id="grid">Grid</button>
+        <button id="shadows">Bayangan</button>
+        <button id="export">Ekspor PPM 512 × 512</button>
+        <button id="benchmark">Ukur frame time</button>
+      </div>
+      <p id="status" role="status" aria-live="polite">Memuat model OBJ + MTL + texture…</p>
+      <p class="hint">Kamera awal disamakan dengan <code>raster3d.py</code>: eye (3.4, 2.5, 4.2), target (0, 0.8, 0), FOV 45°, near 0.1, far 50. Klik Reset kamera acuan sebelum ekspor untuk pembandingan NumPy.</p>
+    </section>
+    <aside class="panel">
+      <h2>Informasi model dan renderer</h2>
+      <dl>
+        <dt>Status model</dt><dd id="modelState">Memuat…</dd>
+        <dt>Vertex buffer</dt><dd id="vertexCount">—</dd>
+        <dt>Segitiga</dt><dd id="triangleCount">—</dd>
+        <dt>Material</dt><dd id="materialCount">—</dd>
+        <dt>Draw calls</dt><dd id="drawCalls">—</dd>
+        <dt>Render resolution</dt><dd>512 × 512</dd>
+        <dt>Pixel ratio</dt><dd>1</dd>
+        <dt>Output color space</dt><dd>sRGB</dd>
+      </dl>
+      <h2>Pengukuran WebGL</h2>
+      <dl>
+        <dt>Rata-rata frame</dt><dd id="frameMs">Belum diukur</dd>
+        <dt>Perkiraan FPS</dt><dd id="fps">—</dd>
+        <dt>Jumlah sampel</dt><dd id="sampleCount">—</dd>
+      </dl>
+      <p class="muted">Pengukuran memakai performance.now() dan gl.finish() sebelum/sesudah rangkaian render. Ini adalah waktu submit + penyelesaian GPU secara sinkron pada perangkat/browser pengujian, bukan jaminan FPS pada semua sistem.</p>
+      <h2>Konfigurasi</h2>
+      <p class="muted">OBJ/MTL dan seluruh PNG texture dibundel pada <code>web/assets/</code>. Diffuse map ditandai sebagai sRGB; material dirender dengan Lambert flat-shading untuk mendekati baseline NumPy. Mipmap dan filtering dijalankan oleh WebGL.</p>
+      <div class="note">Untuk membandingkan frame, gunakan kamera acuan, jangan aktifkan grid atau lantai bayangan, lalu ekspor PPM. Setelah itu jalankan <code>python compare.py out/tugu_raster_512.ppm web/mymodel_three.ppm --diff docs/evidence/lab3_difference.ppm</code>.</div>
+    </aside>
+  </main>
+  <footer>Praktikum Grafika Komputer · Modul 3 · Tugu Pahlawan · Three.js r160 · WebGL</footer>
+  <script type="module" src="./viewer.js"></script>
 </body>
 </html>

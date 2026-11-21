@@ -1,0 +1,48 @@
+name: Deploy Tugu Pahlawan viewer to GitHub Pages
+
+on:
+  push:
+    branches: [m3-work]
+    paths:
+      - "web/**"
+      - ".github/workflows/deploy-pages.yml"
+      - "data/**"
+      - "prepare_tugu.py"
+      - "sync_web_assets.py"
+      - "make_model.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Verify static viewer assets
+        run: |
+          test -f web/index.html
+          test -f web/viewer.js
+          test -f web/assets/mymodel.obj
+          test -f web/assets/mymodel.mtl
+          test -f web/assets/tugu.png
+      - name: Upload web folder
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: web
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
