@@ -1,19 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pusaka3D &mdash; Module 3: Textured Temple (Three.js)</title>
+<title>Modul 3 - Viewer Tugu Pahlawan</title>
 <style>
-  :root { color-scheme: light dark; }
-  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; background: #12121a; color: #e8e8ef; }
-  header { padding: .6rem 1rem; background: #1c1c28; border-bottom: 1px solid #333; }
-  header h1 { font-size: 1rem; margin: 0; }
-  header p { margin: .25rem 0 0; font-size: .8rem; color: #a8a8b8; }
-  #wrap { padding: 1rem; }
-  canvas { border: 1px solid #333; display: block; }
-  button { font: inherit; padding: .3rem .7rem; margin: .6rem .4rem 0 0; }
-  .hint { font-size: .78rem; color: #999; max-width: 520px; }
+  :root { color-scheme: dark; }
+  body { margin: 0; font: 14px/1.55 system-ui, sans-serif; background: #0b1220; color: #e5e7eb; }
+  header { padding: .9rem 1.2rem; background: #111c2e; border-bottom: 1px solid #344054; }
+  header h1 { font-size: 1.1rem; margin: 0; }
+  header p { margin: .3rem 0 0; color: #b8c2d1; }
+  #wrap { padding: 1rem; max-width: 860px; margin: auto; }
+  canvas { width: min(100%, 512px); height: auto; aspect-ratio: 1; border: 1px solid #475467; display: block; background: #111827; }
+  button { font: inherit; padding: .45rem .8rem; margin: .7rem .4rem 0 0; border: 1px solid #667085; border-radius: 6px; background: #1d2939; color: #f2f4f7; cursor: pointer; }
+  button:hover { background: #344054; }
+  #status { min-height: 1.5em; color: #a6f4c5; }
+  .hint { color: #98a2b3; max-width: 650px; }
+  code { color: #d1e9ff; }
 </style>
 <script type="importmap">
 { "imports": {
@@ -24,22 +27,18 @@
 </head>
 <body>
 <header>
-  <h1>Pusaka3D &mdash; Textured Temple, real-time (Module 3)</h1>
-  <p>The SAME <code>data/pusaka_model.obj</code> + <code>data/relief.ppm</code> that
-     <code>raster3d.py</code> and <code>raytrace.py</code> render from scratch.
-     Three.js does the MVP stack, the w-divide, the z-buffer, and
-     perspective-correct texturing on the GPU. Drag to orbit.</p>
+  <h1>Modul 3 — Monumen Tugu Pahlawan dan Museum 10 November</h1>
+  <p>Viewer model OBJ ber-material dan bertekstur menggunakan Three.js / WebGL. Seret untuk orbit, scroll untuk zoom.</p>
 </header>
 <div id="wrap">
   <canvas id="c" width="512" height="512"></canvas>
   <div>
-    <button id="export">Export PPM (512&times;512)</button>
-    <button id="wire">Toggle wireframe</button>
+    <button id="reset">Reset kamera</button>
+    <button id="wire">Tampilkan wireframe</button>
+    <button id="export">Ekspor PPM 512 × 512</button>
   </div>
-  <p class="hint">Export at the <em>same</em> camera as your NumPy render, then
-     <code>python compare.py out/temple_raster.ppm web/temple_three.ppm</code> &mdash;
-     expect ~30&nbsp;dB with the residual on anti-aliased silhouette edges, not
-     in the interior (a transform bug would shift a whole region).</p>
+  <p id="status" role="status">Memuat model…</p>
+  <p class="hint">Model sumber berisi 4.227 segitiga, 5.637 vertex, 5.637 koordinat UV, 15 material, dan texture terpisah. File OBJ telah diorientasikan Y-up, dipusatkan pada X/Z, diletakkan dengan alas Y=0, dan diskalakan ke tinggi 2 satuan dunia. Buka README.md untuk cara menjalankan serta out/lab1_vertex_trace.txt untuk angka pipeline.</p>
 </div>
 <script type="module" src="viewer.js"></script>
 </body>

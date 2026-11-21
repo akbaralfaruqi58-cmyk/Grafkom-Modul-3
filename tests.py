@@ -91,6 +91,21 @@ def t_one_triangle_render():
     assert fin.max() - fin.min() < 1e-6, f"depth spread {fin.max()-fin.min()}"
 
 
+def t_lab1_tugu_model():
+    """The real student asset must be present, textured, and above the Lab 1 minimum."""
+    from pathlib import Path
+    from objio import load_obj
+    path = Path("data/mymodel.obj")
+    assert path.exists(), "data/mymodel.obj missing; run python prepare_tugu.py"
+    mesh = load_obj(path, flip_v=True)
+    assert mesh.n_tris >= 200, f"only {mesh.n_tris} triangles"
+    assert mesh.uvs.shape[0] > 0 and mesh.face_uvs is not None, "UV coordinates missing"
+    assert mesh.face_uvs.shape == (mesh.n_tris, 3), f"incomplete face UVs: {mesh.face_uvs.shape}"
+    extent = mesh.positions.max(axis=0) - mesh.positions.min(axis=0)
+    assert abs(extent[1] - 2.0) < 1e-5, f"expected normalized Y-up height=2, got {extent[1]}"
+    assert Path("data/mymodel.mtl").exists(), "MTL file missing"
+
+
 def t_reference_frame():
     """Render the committed temple and match ref/temple_ref.ppm (generated on
     first run -- commit ref/ afterwards)."""
@@ -124,6 +139,7 @@ def main():
         ("E5  barycentric depth 0.20/0.50/0.90 at (.25,.25,.5) = 0.625", t_e5_barycentric_depth),
         ("projection pipeline shapes + viewport", t_projection_pipeline_shapes),
         ("one-triangle z-buffer render fills a plausible region, flat depth", t_one_triangle_render),
+        ("Lab 1 Tugu Pahlawan OBJ: >=200 triangles, complete UVs, Y-up bounds, MTL", t_lab1_tugu_model),
         ("temple frame matches ref/temple_ref.ppm (byte-identical on re-render)", t_reference_frame),
     ]
     ok = all(check(n, f) for n, f in checks)
