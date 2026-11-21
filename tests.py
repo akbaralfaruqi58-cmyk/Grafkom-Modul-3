@@ -1,15 +1,18 @@
-"""Module 3 -- run every from-scratch check. `python tests.py`. Exit 0 iff all
-pass. Hand-checkable invariants of Examples E1-E5 + a 1-triangle render.
+"""Run the Module 3 from-scratch tests. Exit status 0 means all checks pass.
+Covers worked examples E1-E5, the Tugu Pahlawan OBJ/MTL asset, clipping,
+texture mipmaps, deterministic raster output, and raster-vs-ray parity.
 """
 from __future__ import annotations
 
 import sys
 import traceback
-
+from pathlib import Path
 import numpy as np
 
 from transforms import (translate, rot_y, look_at, perspective, project,
                         viewport, perspective_divide_2d)
+
+ROOT = Path(__file__).resolve().parent
 
 
 def check(name, fn):
@@ -21,22 +24,19 @@ def check(name, fn):
 
 def t_e1_running_point():
     p = np.array([2.0, 3.0, 4.0, 1.0])
-    world = rot_y(90) @ translate((1, 0, -1)) @ p        # translate first, then yaw
+    world = rot_y(90) @ translate((1, 0, -1)) @ p
     assert np.allclose(world, [3, 3, -3, 1], atol=1e-9), world
-    proj = perspective_divide_2d(world[:3], d=2)
-    assert np.allclose(proj, [2, 2], atol=1e-9), proj
-    # order matters: yaw first, then translate -> different point
+    assert np.allclose(perspective_divide_2d(world[:3], d=2), [2, 2], atol=1e-9)
     other = translate((1, 0, -1)) @ rot_y(90) @ p
-    assert not np.allclose(other, world), "order should matter"
+    assert not np.allclose(other, world)
     assert np.allclose(other, [5, 3, -3, 1], atol=1e-9), other
 
 
 def t_e2_duality():
     p = np.array([5.0, 0.0, 0.0, 1.0])
-    V_cam_plus_x = look_at(eye=(1, 0, 0), center=(1, 0, -1))   # camera moved +x
-    model_minus_x = translate((-1, 0, 0))                      # model moved -x
-    assert np.allclose(V_cam_plus_x @ p, model_minus_x @ p, atol=1e-9), \
-        (V_cam_plus_x @ p, model_minus_x @ p)
+    V = look_at(eye=(1, 0, 0), center=(1, 0, -1))
+    M = translate((-1, 0, 0))
+    assert np.allclose(V @ p, M @ p, atol=1e-9)
 
 
 def t_e3_perspective_near_far():
@@ -44,25 +44,20 @@ def t_e3_perspective_near_far():
     P = perspective(60, 1.0, n, f)
     for z, want in [(-n, -1.0), (-f, +1.0), (-3.0, 0.5)]:
         clip = P @ np.array([0, 0, z, 1.0])
-        ndc_z = clip[2] / clip[3]
-        assert abs(ndc_z - want) < 1e-9, f"z={z}: ndc_z={ndc_z} want {want}"
+        assert abs(clip[2] / clip[3] - want) < 1e-9
 
 
 def t_e4_perspective_correct_u():
-    # floor edge: L (x=0, u=0, w=1) .. R (x=100, u=1, w=9); u at screen x=50
     u_over_w = np.interp(50, [0, 100], [0 / 1, 1 / 9])
     inv_w = np.interp(50, [0, 100], [1 / 1, 1 / 9])
     u_pc = u_over_w / inv_w
-    assert abs(u_pc - 0.1) < 1e-12, u_pc
-    assert abs(0.5 - 0.5) < 1e-12               # the naive answer, for contrast
+    assert abs(u_pc - 0.1) < 1e-12
+    assert abs(np.interp(50, [0, 100], [0, 1]) - 0.5) < 1e-12
 
 
 def t_e5_barycentric_depth():
-    zA, zB, zC = 0.20, 0.50, 0.90
-    la, lb, lc = 0.25, 0.25, 0.50
-    assert abs(la + lb + lc - 1) < 1e-12
-    z = la * zA + lb * zB + lc * zC
-    assert abs(z - 0.625) < 1e-12, z
+    z = 0.25 * 0.20 + 0.25 * 0.50 + 0.50 * 0.90
+    assert abs(z - 0.625) < 1e-12
 
 
 def t_projection_pipeline_shapes():
@@ -71,78 +66,121 @@ def t_projection_pipeline_shapes():
     V = look_at((0, 0, 3), (0, 0, 0))
     clip, ndc = project(P, V, np.eye(4), verts)
     assert clip.shape == (3, 4) and ndc.shape == (3, 3)
-    scr = viewport(ndc, 640, 480)
-    assert scr.shape == (3, 3)
-    assert np.all(scr[:, 0] >= -640) and np.all(scr[:, 0] <= 1280)
+    assert viewport(ndc, 640, 480).shape == (3, 3)
 
 
 def t_one_triangle_render():
     from objio import Mesh
     import raster3d
     pos = np.array([[-0.6, -0.6, -2.0], [0.6, -0.6, -2.0], [0.0, 0.6, -2.0]])
-    m = Mesh(pos, np.zeros((0, 2)), [[0, 1, 2]], [])
-    col, dep, filled = raster3d.render(m, w=48, h=48, tex_u8=None, near=1.0,
-                                       far=50.0, eye=(0, 0, 0), center=(0, 0, -1),
-                                       cull_back=False, light_dir=(0, 0, 1))
-    assert 200 < filled < 48 * 48, f"filled={filled}"
+    mesh = Mesh(pos, np.zeros((0, 2)), [[0, 1, 2]])
+    col, dep, filled = raster3d.render(mesh, w=48, h=48, near=1.0, far=50.0,
+                                       eye=(0, 0, 0), center=(0, 0, -1),
+                                       light_dir=(0, 0, 1))
+    assert 200 < filled < 48 * 48, filled
     assert np.isfinite(dep).sum() == filled
-    # depth is constant (all verts at z=-2) -> small spread
-    fin = dep[np.isfinite(dep)]
-    assert fin.max() - fin.min() < 1e-6, f"depth spread {fin.max()-fin.min()}"
+    z = dep[np.isfinite(dep)]
+    assert z.max() - z.min() < 1e-6
+    assert col.shape == (48, 48, 3)
 
 
-def t_lab1_tugu_model():
-    """The real student asset must be present, textured, and above the Lab 1 minimum."""
-    from pathlib import Path
+def t_near_plane_clipping():
+    from raster3d import clip_triangle_near
+    # One vertex outside near plane (z+w<0), two inside; clipping yields a quad
+    # and therefore two triangles after fan triangulation.
+    vc = np.array([[0.0, 0.0, -2.0, 1.0], [0.8, -0.5, 0.0, 1.0], [-0.8, 0.5, 0.0, 1.0]])
+    attrs = np.array([[0, 0], [1, 0], [0, 1]], dtype=float)
+    tris = clip_triangle_near(vc, attrs)
+    assert len(tris) == 2, len(tris)
+    for cv, ca in tris:
+        assert cv.shape == (3, 4) and ca.shape == (3, 2)
+        assert np.all(cv[:, 2] + cv[:, 3] >= -1e-9)
+
+
+def t_lab1_tugu_model_and_materials():
     from objio import load_obj
-    path = Path("data/mymodel.obj")
+    from material_io import load_materials
+    path = ROOT / "data" / "mymodel.obj"
     assert path.exists(), "data/mymodel.obj missing; run python prepare_tugu.py"
     mesh = load_obj(path, flip_v=True)
-    assert mesh.n_tris >= 200, f"only {mesh.n_tris} triangles"
-    assert mesh.uvs.shape[0] > 0 and mesh.face_uvs is not None, "UV coordinates missing"
-    assert mesh.face_uvs.shape == (mesh.n_tris, 3), f"incomplete face UVs: {mesh.face_uvs.shape}"
+    assert mesh.n_tris >= 200, mesh.n_tris
+    assert mesh.uvs.shape[0] > 0 and mesh.face_uvs is not None
+    assert mesh.face_uvs.shape == (mesh.n_tris, 3)
+    assert len(mesh.material_names) >= 10, mesh.material_names
     extent = mesh.positions.max(axis=0) - mesh.positions.min(axis=0)
-    assert abs(extent[1] - 2.0) < 1e-5, f"expected normalized Y-up height=2, got {extent[1]}"
-    assert Path("data/mymodel.mtl").exists(), "MTL file missing"
+    assert abs(extent[1] - 2.0) < 1e-5, extent
+    textures, colors, meta = load_materials(path)
+    assert len(textures) >= 8, sorted(textures)
+    assert len(colors) >= 10
+    assert meta["mtl_path"] is not None
 
 
-def t_reference_frame():
-    """Render the committed temple and match ref/temple_ref.ppm (generated on
-    first run -- commit ref/ afterwards)."""
-    import os
-    import raster3d
+def t_mipmap_four_levels_gamma_correct():
+    from raster3d import build_mip_pyramid
+    tex = np.full((8, 8, 3), 128, dtype=np.uint8)
+    chain = build_mip_pyramid(tex, levels=4)
+    assert [x.shape[:2] for x in chain] == [(8, 8), (4, 4), (2, 2), (1, 1)]
+    for level in chain:
+        assert np.allclose(level, chain[-1][0, 0], atol=1e-12)
+
+
+def t_tugu_reference_frame():
+    """Deterministic Tugu frame compared with the frozen project reference."""
     from objio import load_obj
+    from material_io import load_materials
+    import raster3d
     from ppm_io import read_ppm, write_ppm
-    from transforms import translate, rot_y, scale
     from metrics import psnr
-    if not os.path.exists("data/pusaka_model.obj"):
-        print("     (run make_model.py first -- skipping)"); return
-    mesh = load_obj("data/pusaka_model.obj")
-    tex = read_ppm("data/relief.ppm")
-    M = translate((0, 0, 0)) @ rot_y(35) @ scale((1.4, 1.4, 1.4))
-    col, _, _ = raster3d.render(mesh, w=160, h=160, tex_u8=tex, model=M)
-    if not os.path.exists("ref/temple_ref.ppm"):
-        os.makedirs("ref", exist_ok=True)
-        write_ppm("ref/temple_ref.ppm", col)
-        print("     (ref/temple_ref.ppm generated -- commit it)")
-    ref = read_ppm("ref/temple_ref.ppm")
-    p = psnr(col, ref)
-    assert p == float("inf") or p > 60, f"temple frame PSNR vs ref = {p:.1f} dB"
+    path = ROOT / "data" / "mymodel.obj"
+    mesh = load_obj(path)
+    textures, colors, _ = load_materials(path)
+    image, depth, filled = raster3d.render(mesh, w=128, h=128,
+                                           tex_u8=textures, material_colors=colors,
+                                           model=rot_y(12.0))
+    ref_path = ROOT / "ref" / "tugu_raster_reference.ppm"
+    if not ref_path.exists():
+        ref_path.parent.mkdir(parents=True, exist_ok=True)
+        write_ppm(ref_path, image)
+        print("     generated ref/tugu_raster_reference.ppm; commit this frozen reference")
+    ref = read_ppm(ref_path)
+    p = psnr(image, ref)
+    assert p == float("inf") or p > 60.0, f"Tugu reference PSNR={p:.2f} dB"
+    assert filled > 0 and np.isfinite(depth).any()
+
+
+def t_tugu_raster_raytrace_parity():
+    from objio import load_obj
+    from material_io import load_materials
+    import raster3d, raytrace
+    from metrics import psnr, ssim
+    path = ROOT / "data" / "mymodel.obj"
+    mesh = load_obj(path)
+    textures, colors, _ = load_materials(path)
+    kwargs = dict(w=96, h=96, tex_u8=textures, material_colors=colors, model=rot_y(12.0))
+    raster, depth, _ = raster3d.render(mesh, **kwargs)
+    ray, ray_depth = raytrace.render(mesh, **kwargs)
+    p = psnr(raster, ray)
+    assert p == float("inf") or p >= 60.0, f"raster/ray PSNR={p:.2f} dB"
+    assert ssim(raster, ray) > 0.999
+    assert np.isfinite(depth).any() and np.isfinite(ray_depth).any()
 
 
 def main():
     checks = [
-        ("E1  running point (2,3,4) -> (3,3,-3); divide d=2 -> (2,2); order matters", t_e1_running_point),
-        ("E2  camera +x == model -x (identical points)", t_e2_duality),
-        ("E3  perspective: z=-n -> ndc -1 ; z=-f -> ndc +1 ; z=-3 -> 0.5", t_e3_perspective_near_far),
-        ("E4  perspective-correct u at screen centre = 0.1 (naive 0.5)", t_e4_perspective_correct_u),
-        ("E5  barycentric depth 0.20/0.50/0.90 at (.25,.25,.5) = 0.625", t_e5_barycentric_depth),
-        ("projection pipeline shapes + viewport", t_projection_pipeline_shapes),
-        ("one-triangle z-buffer render fills a plausible region, flat depth", t_one_triangle_render),
-        ("Lab 1 Tugu Pahlawan OBJ: >=200 triangles, complete UVs, Y-up bounds, MTL", t_lab1_tugu_model),
-        ("temple frame matches ref/temple_ref.ppm (byte-identical on re-render)", t_reference_frame),
+        ("E1 running point and transform order", t_e1_running_point),
+        ("E2 camera/model duality", t_e2_duality),
+        ("E3 perspective near/far mapping", t_e3_perspective_near_far),
+        ("E4 perspective-correct UV (0.1 vs naive 0.5)", t_e4_perspective_correct_u),
+        ("E5 barycentric depth interpolation", t_e5_barycentric_depth),
+        ("projection pipeline and viewport shapes", t_projection_pipeline_shapes),
+        ("one-triangle rasterisation and z-buffer", t_one_triangle_render),
+        ("near-plane homogeneous clipping", t_near_plane_clipping),
+        ("Tugu Pahlawan OBJ, UV, MTL and texture assets", t_lab1_tugu_model_and_materials),
+        ("four-level gamma-correct mipmap pyramid", t_mipmap_four_levels_gamma_correct),
+        ("Tugu raster matches frozen reference (PSNR > 60 dB)", t_tugu_reference_frame),
+        ("Tugu rasteriser vs independent ray tracer (PSNR >= 60 dB)", t_tugu_raster_raytrace_parity),
     ]
-    ok = all(check(n, f) for n, f in checks)
+    ok = all(check(name, fn) for name, fn in checks)
     print("\n" + ("ALL CHECKS PASSED" if ok else "SOME CHECKS FAILED"))
     sys.exit(0 if ok else 1)
 

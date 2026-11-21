@@ -1,7 +1,6 @@
 # Module 3 -- 3D Transforms, Projection, Texture & Real-Time Rendering
-# The transform stack, the z-buffer rasteriser and the ray tracer are NumPy
-# only. Pillow is used ONLY for the reference cross-check in metrics/tests and
-# is optional at import time.
-
+# NumPy implements the transform stack, clipping, z-buffer rasteriser,
+# barycentric interpolation, mipmap filtering and ray-triangle calculations.
 numpy>=1.24
-pillow>=10.0        # optional -- reference cross-checks only
+# Pillow is used only for OBJ/MTL texture image decoding and evidence previews.
+Pillow>=10.0
