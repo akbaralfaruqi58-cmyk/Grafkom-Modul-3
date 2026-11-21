@@ -40,16 +40,16 @@ Untuk kualitas visual, pipeline ini tidak memberi ray tracer keunggulan refleksi
 
 Skrip `lab3_benchmark.py` mengukur pemanggilan fungsi render setelah satu warm-up. Model dan texture sudah dimuat sebelum timer dimulai. Resolusi dan konfigurasi kamera sama, bayangan dimatikan, dan pengukuran menggunakan median dari tiga pengulangan.
 
-**Hasil lingkungan saat penyiapan artefak** (bukan hasil laptop mahasiswa):
+**Hasil pengukuran pada laptop** (Windows 10 build 19045, Python 3.12.0, model 4.227 segitiga, 128×128, tiga pengulangan setelah satu warm-up; pemuatan model/texture tidak dihitung):
 
 | Renderer | Median frame time | Perkiraan FPS |
 |---|---:|---:|
-| NumPy rasterizer, 128×128 | 758.6046 ms | 1.32 |
-| NumPy ray tracer, 128×128 | 2,585.3003 ms | 0.39 |
+| NumPy rasterizer | 987.2623 ms | 1.01 |
+| NumPy ray tracer | 2,830.7557 ms | 0.35 |
 
-Rasio waktu ray tracer/rasterizer adalah **3.408×** pada lingkungan pengukuran tersebut. Angka ini tidak boleh dianggap sebagai benchmark laptop. Jalankan `python lab3_benchmark.py --size 128 --repeats 3` pada laptop untuk merekam hasil perangkat sendiri ke `out/lab3_python_benchmark.json`.
+Rasio waktu ray tracer/rasterizer adalah **2.867×** pada laptop saat pengujian. Jalankan `python lab3_benchmark.py --size 128 --repeats 3` untuk mengukur ulang karena waktu render bergantung pada perangkat dan kondisi sistem.
 
-Skrip `lab3_capture.py` juga menghasilkan frame NumPy referensi 512×512 (`out/tugu_raster_512.ppm`) dengan kamera dan model transform yang sama dengan viewer. Render 512×512 pada lingkungan penyiapan memerlukan 917.93 ms untuk rasterizer saja; ini bukan angka WebGL.
+Skrip `lab3_capture.py` menghasilkan frame NumPy referensi 512×512 (`out/tugu_raster_512.ppm`). Pada log laptop yang dikumpulkan, rasterizer membutuhkan 2,905.63 ms untuk membuat frame tersebut. Angka ini merupakan waktu CPU NumPy, bukan waktu WebGL.
 
 ### Benchmark WebGL
 
@@ -73,7 +73,18 @@ Simpan file hasil unduhan sebagai `out/webgl_benchmark.json` agar dapat digabung
 python compare.py out/tugu_raster_512.ppm web/mymodel_three.ppm --diff docs/evidence/lab3_webgl_numpy_difference_x6.ppm --scale 6
 ```
 
-PSNR, SSIM global, mean/max absolute difference, dan citra selisih akan dihasilkan. Jangan mengharapkan byte-identical: raster coverage/anti-aliasing, mipmap/texture filtering, interpolasi normal, serta detail model shading WebGL dapat menghasilkan residual tepi atau material. Pergeseran luas di bagian dalam objek lebih mengarah pada kamera, model transform, UV, atau axis convention yang tidak cocok.
+PSNR, SSIM global, mean/max absolute difference, dan citra selisih akan dihasilkan. Hasil pengukuran browser yang dikumpulkan pada frame 512×512 adalah:
+
+| Metrik | Hasil |
+|---|---:|
+| PSNR NumPy vs WebGL | 16.75 dB |
+| SSIM global | 0.4131 |
+| Mean absolute difference | 23.391 |
+| Maximum absolute difference | 206 |
+| Mean frame WebGL | 0.2675 ms |
+| Perkiraan FPS dari mean frame | 3,738.32 |
+
+PSNR 16.75 dB dan SSIM 0.4131 menunjukkan masih ada perbedaan visual global yang cukup besar; kedua frame belum dapat disebut cocok secara visual. Periksa citra selisih untuk mengetahui lokasi residual. Perbedaan dapat berasal dari raster coverage/anti-aliasing, mipmap/texture filtering, normal, material, atau shading. Jika selisih berupa pergeseran luas pada bagian dalam model, periksa kamera, model transform, UV, dan axis convention. Angka FPS adalah kebalikan dari mean render time pada prosedur benchmark viewer, bukan jaminan frame rate layar yang berkelanjutan.
 
 Untuk menyimpan hasil browser dan membuat ringkasan Markdown setelah benchmark WebGL, simpan JSON unduhan sebagai `out/webgl_benchmark.json`, kemudian jalankan:
 
@@ -127,23 +138,23 @@ Buka URL yang dicetak oleh `serve` (umumnya `http://localhost:3000`). Alternatif
 
 ## 7. Publikasi GitHub Pages
 
-Workflow `.github/workflows/deploy-pages.yml` menerbitkan isi folder `web/` secara otomatis pada push ke branch `m3-work` (dan menyediakan `workflow_dispatch`). Sebelum deploy pertama:
+Workflow `.github/workflows/deploy-pages.yml` menerbitkan isi folder `web/` pada push ke branch **`main`** (dan menyediakan `workflow_dispatch`). Sebelum deploy pertama:
 
-1. Commit dan push Lab 3 ke branch default repo.
+1. Commit dan push perubahan ke `main`.
 2. Buka **Repository → Settings → Pages**.
 3. Pada **Build and deployment → Source**, pilih **GitHub Actions**.
 4. Buka tab **Actions** dan periksa workflow deploy sampai berhasil.
-5. URL project site umumnya `https://USERNAME.github.io/NAMA-REPOSITORY/`.
+5. Setelah sukses, catat URL project site yang diberikan GitHub. Pola umumnya `https://USERNAME.github.io/NAMA-REPOSITORY/`.
 
-Workflow saat ini dipicu oleh branch kerja `m3-work`. Jika kamu memakai branch lain, ubah daftar branch pada workflow sebelum commit. GitHub mendokumentasikan alur custom workflow memakai checkout, upload artifact halaman, lalu deploy artifact. Referensi: https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site dan https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages.
+Workflow ini dikonfigurasi untuk branch `main`, sesuai branch repository yang digunakan untuk commit Lab 1–3. GitHub mendokumentasikan alur custom workflow memakai checkout, upload artifact halaman, lalu deploy artifact. Referensi: https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site dan https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages.
 
 URL live belum dapat dicantumkan di laporan sampai workflow dijalankan pada repository GitHub mahasiswa. Jangan mengarang URL deployment.
 
 ## 8. Batasan
 
 - Viewer mengambil Three.js r160 dari jsDelivr CDN, sehingga halaman perlu koneksi internet saat memuat modul Three.js; model, MTL, dan PNG dibundel lokal.
-- Pengukuran Python pada dokumen ini berasal dari lingkungan penyiapan, bukan laptop mahasiswa. Hasil perangkat sendiri dibuat oleh `lab3_benchmark.py`.
-- Frame WebGL belum dibandingkan sampai file PPM 512×512 diekspor dari browser; nilai PSNR/SSIM WebGL harus diisi dari `collect_lab3_results.py`, bukan ditebak.
+- Pengukuran Python di atas berasal dari laptop pada saat pengujian. Hasil dapat berubah pada perangkat atau kondisi sistem yang berbeda; ukur ulang dengan `lab3_benchmark.py` jika diperlukan.
+- Perbandingan WebGL sudah dijalankan pada frame 512×512. Nilai PSNR/SSIM menunjukkan perbedaan global yang masih cukup besar sehingga citra selisih perlu diperiksa sebelum menyimpulkan kedua renderer cocok.
 - NumPy hard shadow merupakan centroid-per-triangle approximation. WebGL shadow map adalah implementasi real-time yang terpisah.
 - Belum ada recursive reflection, global illumination, soft shadow, PBR penuh, atau BVH pada ray tracer.
 
@@ -158,6 +169,7 @@ URL live belum dapat dicantumkan di laporan sampai workflow dijalankan pada repo
 - [x] Benchmark waktu Python rasterizer vs ray tracer.
 - [x] Opsi hard shadow pada dua renderer NumPy dan shadow map pada WebGL.
 - [x] Workflow GitHub Pages siap.
-- [ ] Ekspor PPM WebGL dari browser dan isi metrik PSNR/SSIM.
+- [x] Ekspor PPM WebGL 512×512 dan hitung PSNR/SSIM terhadap frame NumPy.
+- [x] Ukur frame time WebGL dan simpan hasil benchmark browser.
 - [ ] Deploy GitHub Pages dan catat URL live.
-- [ ] Reproduksi penuh pada laptop/clone bersih dan catat baris `Verified`.
+- [ ] Reproduksi penuh dari clone bersih dan catat baris `Verified`.

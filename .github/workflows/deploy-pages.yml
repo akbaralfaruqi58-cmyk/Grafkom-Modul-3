@@ -2,7 +2,7 @@ name: Deploy Tugu Pahlawan viewer to GitHub Pages
 
 on:
   push:
-    branches: [m3-work]
+    branches: [main]
     paths:
       - "web/**"
       - ".github/workflows/deploy-pages.yml"
