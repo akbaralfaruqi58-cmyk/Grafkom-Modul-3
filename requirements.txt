@@ -1,6 +1,0 @@
-# Module 3 -- 3D Transforms, Projection, Texture & Real-Time Rendering
-# NumPy implements the transform stack, clipping, z-buffer rasteriser,
-# barycentric interpolation, mipmap filtering and ray-triangle calculations.
-numpy>=1.24
-# Pillow is used only for OBJ/MTL texture image decoding and evidence previews.
-Pillow>=10.0

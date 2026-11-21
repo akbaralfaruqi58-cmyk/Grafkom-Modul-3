@@ -1,0 +1,29 @@
+{
+  "webgl_numpy_comparison": {
+    "resolution": [
+      512,
+      512
+    ],
+    "psnr_db": 16.7461,
+    "ssim_global": 0.413087,
+    "mean_absolute_difference": 23.39068857828776,
+    "max_absolute_difference": 206,
+    "difference_image": "docs\\evidence\\lab3_webgl_numpy_difference_x6.ppm"
+  },
+  "webgl_benchmark": {
+    "renderer": "Three.js WebGL",
+    "threeRevision": "160",
+    "width": 512,
+    "height": 512,
+    "pixelRatio": 1,
+    "warmupFrames": 20,
+    "measuredFrames": 120,
+    "totalMilliseconds": 32.1,
+    "meanFrameMilliseconds": 0.2675,
+    "approximateFps": 3738.32,
+    "drawCalls": 53,
+    "triangles": 4229,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36",
+    "note": "performance.now() around renderer.render() with gl.finish() before and after; CPU submit + completion wall time on this browser/GPU."
+  }
+}
